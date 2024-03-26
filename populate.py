@@ -5,6 +5,16 @@ from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
 
 
+def seperate_string(func: callable):
+    def wrapper(*args, **kwargs):
+        print("-+-" * 3)
+        result = func(*args, **kwargs)
+        print("-+-" * 3)
+        return result
+
+    return wrapper
+
+
 def subtract_years(date_obj: datetime, years: int) -> datetime:
     # Subtract years from the given date object
     new_date = date_obj - relativedelta(years=years)
@@ -227,18 +237,93 @@ def generate_new_banks(count: int) -> None:
             session.commit()
 
 
-def main():
+@seperate_string
+def show_banks() -> None:
+    banks = session.query(Bank).order_by(Bank.name)
+    for bank in banks:
+        print(bank)
 
-    print(generate_random_bank_name())
-    print(generate_random_personal_code())
-    print(generate_random_telephone())
 
-    print("")
-    bank_name = generate_random_bank_name()
-    bank_code = generate_random_bank_code()
-    print(generate_random_address())
-    swift = generate_random_swift_code(bank_name, bank_code)
-    print(swift)
+@seperate_string
+def show_persons() -> None:
+    persons = session.query(Person).order_by(Person.name, Person.surname)
+    for person in persons:
+        print(person)
+
+
+@seperate_string
+def show_accounts() -> None:
+    accounts = (
+        session.query(Account, Bank, Person)
+        .join(Bank, Account.bank_id == Bank.id)
+        .join(Person, Account.person_id == Person.id)
+        .order_by(Bank.name, Person.personal_code)
+    )
+
+    for account, bank, person in accounts:
+        print(
+            f"{bank.name} - Account id: {account.id}, Account balance: {account.balance}, Person surname: {person.surname}, Person personal code: {person.personal_code}"
+        )
+
+
+@seperate_string
+def show_personal_accounts(personal_code: str) -> None:
+    results = (
+        session.query(Person, Account, Bank)
+        .filter_by(personal_code=personal_code)
+        .join(Account, Person.id == Account.person_id)
+        .join(Bank, Account.bank_id == Bank.id)
+    ).order_by(Bank.name)
+
+    # print(f"Account information for person with personal code: '{personal_code}': ")
+    for person, account, bank in results:
+        print(
+            f"{bank.name} - Account id: {account.id}, Account balance: {account.balance}"
+        )
+
+
+def greet_person(personal_code: str) -> None:
+    person = session.query(Person).filter_by(personal_code=personal_code).one_or_none()
+    greeting = f"~Welcome {person.name} {person.surname}, {person.phone}~"
+    print(greeting)
+
+
+def personal_code_exists(personal_code: str) -> bool:
+    person_exists = (
+        session.query(Person).filter_by(personal_code=personal_code).one_or_none()
+    )
+    if person_exists is not None:
+        return True
+    return False
+
+
+def select_account(personal_code: str, id: int) -> Query:
+    # Select account
+    account = (
+        session.query(Account, Person)
+        .filter_by(id=id)
+        .join(Person, Account.person_id == Person.id)
+        .filter_by(personal_code=personal_code)
+        .one_or_none()
+    )
+
+    if account is None:
+        return None
+    else:
+        return account[0]
+
+
+def deposit(account: Query, amount: float) -> None:
+    account.balance = round(account.balance + amount, 2)
+    session.commit()
+
+
+def withdraw(account: Query, amount: float) -> None:
+    account.balance = round(account.balance - amount, 2)
+    session.commit()
+
+
+def main(): ...
 
 
 if __name__ == "__main__":
