@@ -1,0 +1,3 @@
+python-dateutil==2.8.2
+RandomWords==0.4.0
+SQLAlchemy==2.0.28

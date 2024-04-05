@@ -2,23 +2,19 @@ from models import session, Person, Bank, Account, Query
 from random_words import RandomNicknames, RandomWords
 from random import randint, choice
 from datetime import datetime, timedelta
-from dateutil.relativedelta import relativedelta
+from utils import subtract_years
 
 
-def seperate_string(func: callable):
-    def wrapper(*args, **kwargs):
-        print("-+-" * 3)
-        result = func(*args, **kwargs)
-        print("-+-" * 3)
-        return result
-
-    return wrapper
+class NoPersonsError(Exception):
+    def __init__(self):
+        message = f"ERROR. Operation fail. There are no persons in database. "
+        super().__init__(message)
 
 
-def subtract_years(date_obj: datetime, years: int) -> datetime:
-    # Subtract years from the given date object
-    new_date = date_obj - relativedelta(years=years)
-    return new_date
+class NoBanksError(Exception):
+    def __init__(self):
+        message = f"ERROR. Operation fail. There are no banks in database. "
+        super().__init__(message)
 
 
 def generate_random_date() -> str:
@@ -185,29 +181,23 @@ def generate_new_accounts(count: int) -> None:
     # Check if there are any records created in person table
     person_ids = get_valid_person_ids_from_db()
     if len(person_ids) == 0:
-        print(
-            "ERROR. Unable to create new accounts. There are no persons in database. "
-        )
-        return
+        raise NoPersonsError
 
     # Check if there are any records created in bank table
     bank_ids = get_valid_bank_ids_from_db()
     if len(bank_ids) == 0:
-        print("ERROR. Unable to create new accounts. There are no banks in database. ")
-        return
+        raise NoBanksError
 
     while True:
         if generated_count == count:
             break
         generated_count += 1
-
         # Get random balance
         balance = choice(balances)
         # Get random person_id
         person_id = choice(person_ids)
         # Get random bank_id
         bank_id = choice(bank_ids)
-
         # Create new account in db
         account = Account(balance=balance, person_id=person_id, bank_id=bank_id)
         session.add(account)
@@ -235,92 +225,6 @@ def generate_new_banks(count: int) -> None:
             bank = Bank(name=name, address=address, code=code, swift=swift)
             session.add(bank)
             session.commit()
-
-
-@seperate_string
-def show_banks() -> None:
-    banks = session.query(Bank).order_by(Bank.name)
-    for bank in banks:
-        print(bank)
-
-
-@seperate_string
-def show_persons() -> None:
-    persons = session.query(Person).order_by(Person.name, Person.surname)
-    for person in persons:
-        print(person)
-
-
-@seperate_string
-def show_accounts() -> None:
-    accounts = (
-        session.query(Account, Bank, Person)
-        .join(Bank, Account.bank_id == Bank.id)
-        .join(Person, Account.person_id == Person.id)
-        .order_by(Bank.name, Person.personal_code)
-    )
-
-    for account, bank, person in accounts:
-        print(
-            f"{bank.name} - Account id: {account.id}, Account balance: {account.balance}, Person surname: {person.surname}, Person personal code: {person.personal_code}"
-        )
-
-
-@seperate_string
-def show_personal_accounts(personal_code: str) -> None:
-    results = (
-        session.query(Person, Account, Bank)
-        .filter_by(personal_code=personal_code)
-        .join(Account, Person.id == Account.person_id)
-        .join(Bank, Account.bank_id == Bank.id)
-    ).order_by(Bank.name)
-
-    # print(f"Account information for person with personal code: '{personal_code}': ")
-    for person, account, bank in results:
-        print(
-            f"{bank.name} - Account id: {account.id}, Account balance: {account.balance}"
-        )
-
-
-def greet_person(personal_code: str) -> None:
-    person = session.query(Person).filter_by(personal_code=personal_code).one_or_none()
-    greeting = f"~Welcome {person.name} {person.surname}, {person.phone}~"
-    print(greeting)
-
-
-def personal_code_exists(personal_code: str) -> bool:
-    person_exists = (
-        session.query(Person).filter_by(personal_code=personal_code).one_or_none()
-    )
-    if person_exists is not None:
-        return True
-    return False
-
-
-def select_account(personal_code: str, id: int) -> Query:
-    # Select account
-    account = (
-        session.query(Account, Person)
-        .filter_by(id=id)
-        .join(Person, Account.person_id == Person.id)
-        .filter_by(personal_code=personal_code)
-        .one_or_none()
-    )
-
-    if account is None:
-        return None
-    else:
-        return account[0]
-
-
-def deposit(account: Query, amount: float) -> None:
-    account.balance = round(account.balance + amount, 2)
-    session.commit()
-
-
-def withdraw(account: Query, amount: float) -> None:
-    account.balance = round(account.balance - amount, 2)
-    session.commit()
 
 
 def main(): ...

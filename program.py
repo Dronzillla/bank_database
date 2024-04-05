@@ -1,17 +1,14 @@
 import sys
-from populate import (
-    generate_new_banks,
-    generate_new_persons,
-    generate_new_accounts,
+from populate import generate_new_banks, generate_new_persons, generate_new_accounts
+from populate import NoPersonsError, NoBanksError
+from db_operations import show_banks, show_persons, show_accounts
+from db_operations import (
     personal_code_exists,
+    greet_person,
     show_personal_accounts,
-    show_banks,
-    show_persons,
-    show_accounts,
     select_account,
     deposit,
     withdraw,
-    greet_person,
 )
 
 
@@ -46,9 +43,15 @@ class Program:
                                 print("-" * 30)
                             elif sub_sub_menu_choice == "3. Add random new accounts":
                                 count = self.get_not_negative_integer()
-                                generate_new_accounts(count)
-                                print(f"Adding {count} new account(s) to a database. ")
-                                print("-" * 30)
+                                try:
+                                    generate_new_accounts(count)
+                                except (NoPersonsError, NoBanksError) as e:
+                                    print(f"{e.args[0]}")
+                                else:
+                                    print(
+                                        f"Adding {count} new account(s) to a database. "
+                                    )
+                                    print("-" * 30)
                             elif sub_sub_menu_choice == "4. Back to menu":
                                 break
                             # TODO: Implement Create new bank, person, account
