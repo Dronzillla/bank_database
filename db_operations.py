@@ -1,5 +1,65 @@
 from utils import seperate_string
-from models import session, Person, Bank, Account, Query
+from models import session, Person, Bank, Account, Query, engine
+from sqlalchemy import create_engine, MetaData, Table
+
+# TODO update this variable with more data types
+SQL_TYPE_PYTHON = {"VARCHAR": str, "INTEGER": int, "FLOAT": float}
+
+
+# Functions to make copy of sql database to mongodb database
+def get_sql_table_names() -> list[str]:
+    """get_sql_table_names _summary_
+
+    Returns:
+        list[str]: A list of sql database table names.
+    """
+    metadata = MetaData()
+    metadata.reflect(bind=engine)
+    tables = metadata.tables.keys()
+    return list(tables)
+
+
+def get_sql_column_names(table_name: str) -> dict:
+    """get_sql_column_names _summary_
+
+    Args:
+        table_name (str): Table name in sql database.
+
+    Returns:
+        dict: Returns a dictionary with key as column name and value as python data type.
+    """
+    metadata = MetaData()
+    metadata.reflect(bind=engine)
+    # table type is sqlalchemy.sql.schema.Table
+    table = metadata.tables[table_name]
+
+    result = {}
+    for column in table.columns:
+        column_name = column.name
+        column_type = column.type
+        column_type_str = str(column_type)
+        # Map sql data type with python data type
+        data_type = SQL_TYPE_PYTHON[column_type_str]
+        # Create dictionary for each column, key - column name, value - python data type
+        result[column_name] = result.get(column_name, data_type)
+    return result
+
+
+def return_table_data(table_name: str) -> list[tuple]:
+    """return_table_data _summary_
+
+    Args:
+        table_name (str): Table name in sql database.
+
+    Returns:
+        list[tuple]: Returns a list of records as tuples.
+    """
+    metadata = MetaData()
+    metadata.reflect(bind=engine)
+    # table type is sqlalchemy.sql.schema.Table
+    table = metadata.tables[table_name]
+    data = session.query(table).all()
+    return data
 
 
 # MAIN MENU
@@ -97,7 +157,8 @@ def deposit(account: Query, amount: float) -> None:
     session.commit()
 
 
-def main(): ...
+def main():
+    return_table_data("bank")
 
 
 if __name__ == "__main__":
